@@ -194,6 +194,7 @@ const HealthFoodScanner = () => {
                 <label key={condition} className="flex items-center space-x-2">
                   <input
                     type="checkbox"
+                    // eslint-disable-next-line @typescript-eslint/no-explicit-any
                     checked={(healthConditions as any)[condition]}
                     onChange={(e) =>
                       setHealthConditions((prev) => ({
