@@ -45,27 +45,44 @@ const HealthFoodScanner = () => {
   };
 
   const startScanner = async () => {
-    if (codeReader.current && videoRef.current) {
-      try {
-        const controls = await codeReader.current.decodeFromVideoDevice(
-          undefined,
-          videoRef.current,
-          (result, err) => {
-            if (result) {
-              handleScan(result.getText());
-            }
-            if (err && !(err instanceof NotFoundException)) {
-              console.error("Scanner error:", err);
-            }
+  if (codeReader.current && videoRef.current) {
+    try {
+      console.log("Requesting camera...");
+      const stream = await navigator.mediaDevices.getUserMedia({
+        video: { facingMode: "environment" },
+      });
+
+      videoRef.current.srcObject = stream;
+      videoRef.current.setAttribute("playsinline", "true"); // ✅ needed for iOS Safari
+      await videoRef.current.play();
+
+      console.log("Camera started, attaching decoder...");
+
+      const controls = await codeReader.current.decodeFromVideoDevice(
+        null,
+        videoRef.current,
+        (result, err) => {
+          if (result) {
+            console.log("Barcode detected:", result.getText());
+            handleScan(result.getText());
           }
-        );
-        controlsRef.current = controls;
-        setIsScanning(true);
-      } catch (error) {
-        console.error("Error starting scanner:", error);
-      }
+          if (err && !(err instanceof NotFoundException)) {
+            console.error("Scanner error:", err);
+          }
+        }
+      );
+
+      controlsRef.current = controls;
+      setIsScanning(true);
+    } catch (error) {
+      console.error("Error starting scanner:", error);
+      alert("Camera access denied or unavailable. Please check browser settings.");
     }
-  };
+  } else {
+    console.warn("CodeReader or videoRef not initialized.");
+  }
+};
+
 
   const stopScanner = () => {
     if (controlsRef.current) {
