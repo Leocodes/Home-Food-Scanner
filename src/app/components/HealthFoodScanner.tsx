@@ -68,10 +68,14 @@ const HealthFoodScanner = () => {
   };
 
   const stopScanner = () => {
-    if (codeReader.current) {
-      codeReader.current.reset();
+  if (codeReader.current) {
+    try {
+      codeReader.current.stopContinuousDecode(); // ✅ stops the scanner properly
+    } catch (err) {
+      console.error("Error stopping scanner:", err);
     }
-    setIsScanning(false);
+  }
+  setIsScanning(false);
   };
 
   const mockDatabase: Record<string, Product> = {
