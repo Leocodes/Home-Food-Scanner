@@ -1,5 +1,5 @@
 "use client";
-
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import { BrowserMultiFormatReader } from "@zxing/browser";
 import { useState, useRef, useEffect } from "react";
 import { Barcode, Camera, ShoppingCart, AlertTriangle, Info } from "lucide-react";
