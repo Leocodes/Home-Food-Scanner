@@ -38,42 +38,33 @@ const HealthFoodScanner = () => {
   }, []);
 
   const startScanner = async () => {
-    if (!codeReader.current) return;
-    setIsScanning(true);
+  if (codeReader.current && videoRef.current) {
     try {
-      const devices = await BrowserMultiFormatReader.listVideoInputDevices();
-      if (devices.length === 0) {
-        alert("No camera devices found.");
-        setIsScanning(false);
-        return;
-      }
-
-      const selectedDeviceId = devices[0].deviceId;
-
-      codeReader.current.decodeFromVideoDevice(
-        selectedDeviceId,
-        videoRef.current!,
+      const controls = await codeReader.current.decodeFromVideoDevice(
+        null,
+        videoRef.current,
         (result, err) => {
           if (result) {
-            setBarcodeInput(result.getText());
+            handleScan(result.getText());
             stopScanner();
-            handleBarcodeSubmit(result.getText());
+          }
+          if (err && !(err instanceof NotFoundException)) {
+            console.error(err);
           }
         }
       );
-    } catch (error) {
-      console.error("Error starting scanner:", error);
-      setIsScanning(false);
-    }
-  };
-
-  const stopScanner = () => {
-  if (codeReader.current) {
-    try {
-      codeReader.current.stopContinuousDecode(); // ✅ stops the scanner properly
+      // ✅ Save the controls so we can stop later
+      (codeReader.current as any)._controls = controls;
+      setIsScanning(true);
     } catch (err) {
-      console.error("Error stopping scanner:", err);
+      console.error("Error starting scanner:", err);
     }
+  }
+};
+
+const stopScanner = () => {
+  if (codeReader.current && (codeReader.current as any)._controls) {
+    (codeReader.current as any)._controls.stop(); // ✅ this works
   }
   setIsScanning(false);
   };
