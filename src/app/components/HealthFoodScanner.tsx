@@ -28,11 +28,13 @@ const HealthFoodScanner = () => {
     glutenIntolerance: false,
   });
   const [isScanning, setIsScanning] = useState(false);
+  const [mounted, setMounted] = useState(false);
   const videoRef = useRef<HTMLVideoElement | null>(null);
   const codeReader = useRef<BrowserMultiFormatReader | null>(null);
   const controlsRef = useRef<any>(null);
 
   useEffect(() => {
+    setMounted(true);
     codeReader.current = new BrowserMultiFormatReader();
     return () => stopScanner();
   }, []);
@@ -190,27 +192,31 @@ const HealthFoodScanner = () => {
 
       {/* Tab content */}
       <div className="p-4">
-        {activeTab === "scan" && (
-          <div className="space-y-4">
-            <div className="border-2 border-dashed rounded-lg h-64 flex items-center justify-center relative overflow-hidden">
-              {isScanning ? (
-                <video ref={videoRef} className="w-full h-full object-cover" />
-              ) : (
-                <div className="flex items-center text-gray-400">
-                  <Camera className="w-12 h-12" />
-                  <span className="ml-2">Camera Preview</span>
-                </div>
-              )}
-            </div>
-            <button
-              onClick={isScanning ? stopScanner : startScanner}
-              className="w-full bg-blue-600 text-white py-2 rounded-lg hover:bg-blue-700"
-            >
-              {isScanning ? "Stop Scan" : "Scan Now"}
-            </button>
-            <p className="text-sm text-gray-500 text-center">Point your camera at a barcode to scan</p>
-          </div>
-        )}
+        {activeTab === "scan" && mounted && (
+  <div className="space-y-4">
+    <div className="border-2 border-dashed rounded-lg h-64 flex items-center justify-center relative overflow-hidden">
+      {isScanning ? (
+        <video ref={videoRef} className="w-full h-full object-cover" />
+      ) : (
+        <div className="flex items-center text-gray-400">
+          <Camera className="w-12 h-12" />
+          <span className="ml-2">Camera Preview</span>
+        </div>
+      )}
+    </div>
+
+    <button
+      onClick={isScanning ? stopScanner : startScanner}
+      className="w-full bg-blue-600 text-white py-2 rounded-lg hover:bg-blue-700"
+    >
+      {isScanning ? "Stop Scan" : "Scan Now"}
+    </button>
+
+    <p className="text-sm text-gray-500 text-center">
+      Point your camera at a barcode to scan
+    </p>
+  </div>
+)}
 
         {activeTab === "barcode" && (
           <div className="space-y-4">
