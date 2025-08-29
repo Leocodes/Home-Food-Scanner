@@ -1,6 +1,7 @@
 "use client";
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { BrowserMultiFormatReader } from "@zxing/browser";
+import { NotFoundException } from "@zxing/library";
 import { useState, useRef, useEffect } from "react";
 import { Barcode, Camera, ShoppingCart, AlertTriangle, Info } from "lucide-react";
 
@@ -29,44 +30,47 @@ const HealthFoodScanner = () => {
   const [isScanning, setIsScanning] = useState(false);
   const videoRef = useRef<HTMLVideoElement | null>(null);
   const codeReader = useRef<BrowserMultiFormatReader | null>(null);
+  const controlsRef = useRef<any>(null);
 
   useEffect(() => {
     codeReader.current = new BrowserMultiFormatReader();
-    return () => {
-      stopScanner();
-    };
+    return () => stopScanner();
   }, []);
 
-  const startScanner = async () => {
-  if (codeReader.current && videoRef.current) {
-    try {
-      const controls = await codeReader.current.decodeFromVideoDevice(
-        null,
-        videoRef.current,
-        (result, err) => {
-          if (result) {
-            handleScan(result.getText());
-            stopScanner();
-          }
-          if (err && !(err instanceof NotFoundException)) {
-            console.error(err);
-          }
-        }
-      );
-      // ✅ Save the controls so we can stop later
-      (codeReader.current as any)._controls = controls;
-      setIsScanning(true);
-    } catch (err) {
-      console.error("Error starting scanner:", err);
-    }
-  }
-};
+  const handleScan = (code: string) => {
+    handleBarcodeSubmit(code);
+    stopScanner();
+  };
 
-const stopScanner = () => {
-  if (codeReader.current && (codeReader.current as any)._controls) {
-    (codeReader.current as any)._controls.stop(); // ✅ this works
-  }
-  setIsScanning(false);
+  const startScanner = async () => {
+    if (codeReader.current && videoRef.current) {
+      try {
+        const controls = await codeReader.current.decodeFromVideoDevice(
+          undefined,
+          videoRef.current,
+          (result, err) => {
+            if (result) {
+              handleScan(result.getText());
+            }
+            if (err && !(err instanceof NotFoundException)) {
+              console.error("Scanner error:", err);
+            }
+          }
+        );
+        controlsRef.current = controls;
+        setIsScanning(true);
+      } catch (error) {
+        console.error("Error starting scanner:", error);
+      }
+    }
+  };
+
+  const stopScanner = () => {
+    if (controlsRef.current) {
+      controlsRef.current.stop();
+      controlsRef.current = null;
+    }
+    setIsScanning(false);
   };
 
   const mockDatabase: Record<string, Product> = {
@@ -90,11 +94,11 @@ const stopScanner = () => {
   };
 
   const analyzeIngredients = (ingredients: string): Warning[] => {
-    const lowerIngredients = ingredients.toLowerCase();
+    const lower = ingredients.toLowerCase();
     const warnings: Warning[] = [];
-    if (lowerIngredients.includes("sugar")) warnings.push({ type: "high-sugar", message: "Contains added sugar" });
-    if (lowerIngredients.includes("caffeine")) warnings.push({ type: "caffeine", message: "Contains caffeine" });
-    if (lowerIngredients.includes("gluten")) warnings.push({ type: "gluten", message: "Contains gluten" });
+    if (lower.includes("sugar")) warnings.push({ type: "high-sugar", message: "Contains added sugar" });
+    if (lower.includes("caffeine")) warnings.push({ type: "caffeine", message: "Contains caffeine" });
+    if (lower.includes("gluten")) warnings.push({ type: "gluten", message: "Contains gluten" });
     return warnings;
   };
 
@@ -130,12 +134,11 @@ const stopScanner = () => {
   };
 
   const simulateStoreComparison = (_productName: string) => {
-    const prices: StorePrice[] = [
+    setStoreComparison([
       { store: "Walmart", price: "$1.50" },
       { store: "Target", price: "$1.75" },
       { store: "Amazon", price: "$1.65" },
-    ];
-    setStoreComparison(prices);
+    ]);
   };
 
   const getWarningColor = (type: string) => {
@@ -166,34 +169,23 @@ const stopScanner = () => {
     <div className="max-w-2xl mx-auto bg-white rounded-xl shadow-lg overflow-hidden">
       {/* Tabs */}
       <div className="flex border-b">
-        <button
-          className={`flex-1 py-3 text-center ${activeTab === "scan" ? "bg-blue-50 text-blue-600 border-b-2 border-blue-600" : "text-gray-600"}`}
-          onClick={() => setActiveTab("scan")}
-        >
-          <Camera className="w-5 h-5 mx-auto mb-1" />
-          Scan
-        </button>
-        <button
-          className={`flex-1 py-3 text-center ${activeTab === "barcode" ? "bg-blue-50 text-blue-600 border-b-2 border-blue-600" : "text-gray-600"}`}
-          onClick={() => setActiveTab("barcode")}
-        >
-          <Barcode className="w-5 h-5 mx-auto mb-1" />
-          Barcode
-        </button>
-        <button
-          className={`flex-1 py-3 text-center ${activeTab === "manual" ? "bg-blue-50 text-blue-600 border-b-2 border-blue-600" : "text-gray-600"}`}
-          onClick={() => setActiveTab("manual")}
-        >
-          <ShoppingCart className="w-5 h-5 mx-auto mb-1" />
-          Manual
-        </button>
-        <button
-          className={`flex-1 py-3 text-center ${activeTab === "results" ? "bg-blue-50 text-blue-600 border-b-2 border-blue-600" : "text-gray-600"}`}
-          onClick={() => setActiveTab("results")}
-        >
-          <Info className="w-5 h-5 mx-auto mb-1" />
-          Results
-        </button>
+        {[
+          { key: "scan", label: "Scan", icon: Camera },
+          { key: "barcode", label: "Barcode", icon: Barcode },
+          { key: "manual", label: "Manual", icon: ShoppingCart },
+          { key: "results", label: "Results", icon: Info },
+        ].map((tab) => (
+          <button
+            key={tab.key}
+            className={`flex-1 py-3 text-center ${
+              activeTab === tab.key ? "bg-blue-50 text-blue-600 border-b-2 border-blue-600" : "text-gray-600"
+            }`}
+            onClick={() => setActiveTab(tab.key as any)}
+          >
+            <tab.icon className="w-5 h-5 mx-auto mb-1" />
+            {tab.label}
+          </button>
+        ))}
       </div>
 
       {/* Tab content */}
