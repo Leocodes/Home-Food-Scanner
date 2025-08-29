@@ -1,6 +1,7 @@
 "use client";
 
-import { useState } from "react";
+import { BrowserMultiFormatReader } from "@zxing/browser";
+import { useState, useRef, useEffect } from "react";
 import { Barcode, Camera, ShoppingCart, AlertTriangle, Info } from "lucide-react";
 
 type Warning = { type: string; message: string };
@@ -25,6 +26,53 @@ const HealthFoodScanner = () => {
     hypertension: false,
     glutenIntolerance: false,
   });
+  const [isScanning, setIsScanning] = useState(false);
+  const videoRef = useRef<HTMLVideoElement | null>(null);
+  const codeReader = useRef<BrowserMultiFormatReader | null>(null);
+
+  useEffect(() => {
+    codeReader.current = new BrowserMultiFormatReader();
+    return () => {
+      stopScanner();
+    };
+  }, []);
+
+  const startScanner = async () => {
+    if (!codeReader.current) return;
+    setIsScanning(true);
+    try {
+      const devices = await BrowserMultiFormatReader.listVideoInputDevices();
+      if (devices.length === 0) {
+        alert("No camera devices found.");
+        setIsScanning(false);
+        return;
+      }
+
+      const selectedDeviceId = devices[0].deviceId;
+
+      codeReader.current.decodeFromVideoDevice(
+        selectedDeviceId,
+        videoRef.current!,
+        (result, err) => {
+          if (result) {
+            setBarcodeInput(result.getText());
+            stopScanner();
+            handleBarcodeSubmit(result.getText());
+          }
+        }
+      );
+    } catch (error) {
+      console.error("Error starting scanner:", error);
+      setIsScanning(false);
+    }
+  };
+
+  const stopScanner = () => {
+    if (codeReader.current) {
+      codeReader.current.reset();
+    }
+    setIsScanning(false);
+  };
 
   const mockDatabase: Record<string, Product> = {
     "123456789": {
@@ -55,8 +103,9 @@ const HealthFoodScanner = () => {
     return warnings;
   };
 
-  const handleBarcodeSubmit = () => {
-    const product = mockDatabase[barcodeInput];
+  const handleBarcodeSubmit = (code?: string) => {
+    const value = code ?? barcodeInput;
+    const product = mockDatabase[value];
     if (product) {
       setScannedProduct(product);
       simulateStoreComparison(product.name);
@@ -120,6 +169,7 @@ const HealthFoodScanner = () => {
 
   return (
     <div className="max-w-2xl mx-auto bg-white rounded-xl shadow-lg overflow-hidden">
+      {/* Tabs */}
       <div className="flex border-b">
         <button
           className={`flex-1 py-3 text-center ${activeTab === "scan" ? "bg-blue-50 text-blue-600 border-b-2 border-blue-600" : "text-gray-600"}`}
@@ -151,13 +201,26 @@ const HealthFoodScanner = () => {
         </button>
       </div>
 
+      {/* Tab content */}
       <div className="p-4">
         {activeTab === "scan" && (
           <div className="space-y-4">
-            <div className="border-2 border-dashed rounded-lg h-64 flex items-center justify-center text-gray-400">
-              <Camera className="w-12 h-12" />
-              <span className="ml-2">Camera Preview</span>
+            <div className="border-2 border-dashed rounded-lg h-64 flex items-center justify-center relative overflow-hidden">
+              {isScanning ? (
+                <video ref={videoRef} className="w-full h-full object-cover" />
+              ) : (
+                <div className="flex items-center text-gray-400">
+                  <Camera className="w-12 h-12" />
+                  <span className="ml-2">Camera Preview</span>
+                </div>
+              )}
             </div>
+            <button
+              onClick={isScanning ? stopScanner : startScanner}
+              className="w-full bg-blue-600 text-white py-2 rounded-lg hover:bg-blue-700"
+            >
+              {isScanning ? "Stop Scan" : "Scan Now"}
+            </button>
             <p className="text-sm text-gray-500 text-center">Point your camera at a barcode to scan</p>
           </div>
         )}
@@ -172,7 +235,7 @@ const HealthFoodScanner = () => {
               className="w-full p-2 border rounded-lg"
             />
             <button
-              onClick={handleBarcodeSubmit}
+              onClick={() => handleBarcodeSubmit()}
               className="w-full bg-blue-600 text-white py-2 rounded-lg hover:bg-blue-700"
             >
               Lookup Product
@@ -194,7 +257,6 @@ const HealthFoodScanner = () => {
                 <label key={condition} className="flex items-center space-x-2">
                   <input
                     type="checkbox"
-                    // eslint-disable-next-line @typescript-eslint/no-explicit-any
                     checked={(healthConditions as any)[condition]}
                     onChange={(e) =>
                       setHealthConditions((prev) => ({
@@ -224,16 +286,17 @@ const HealthFoodScanner = () => {
             </div>
 
             {/* Donation button */}
-    <div className="flex justify-center">
-      <a
-        href="https://buymeacoffee.com/dppsquad"
-        target="_blank"
-        rel="noopener noreferrer"
-        className="mt-6 px-6 py-3 bg-yellow-400 text-black font-semibold rounded-xl shadow-md hover:bg-yellow-500 transition"
-      >
-        ☕ Buy me a coffee
-      </a>
-    </div>
+            <div className="flex justify-center">
+              <a
+                href="https://buymeacoffee.com/dppsquad"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="mt-6 px-6 py-3 bg-yellow-400 text-black font-semibold rounded-xl shadow-md hover:bg-yellow-500 transition"
+              >
+                ☕ Buy me a coffee
+              </a>
+            </div>
+
             {storeComparison.length > 0 && (
               <div>
                 <h3 className="font-medium text-gray-800 mb-3">Store Price Comparison</h3>
